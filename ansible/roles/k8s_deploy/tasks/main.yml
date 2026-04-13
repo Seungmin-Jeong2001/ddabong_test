@@ -9,7 +9,7 @@
 
 - name: Apply kube-state-metrics
   shell: |
-    KUBECONFIG=~/.kube/config kubectl apply -f https://raw.githubusercontent.com/kubernetes/kube-state-metrics/v2.10.1/examples/standard/
+    KUBECONFIG=~/.kube/config kubectl apply -k https://github.com/kubernetes/kube-state-metrics/examples/standard?ref=v2.10.1
   become: no
 
 - name: Copy app manifests
