@@ -37,8 +37,12 @@
       register: k3s_bin
 
     - name: Install k3s
-      shell: curl -sfL https://get.k3s.io | sh -
+      shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" sh -
       when: not k3s_bin.stat.exists
+
+    - name: Ensure k3s is updated to disable traefik (if already installed)
+      shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" sh -
+      when: k3s_bin.stat.exists
 
     - name: Wait for k3s to be ready
       wait_for:
