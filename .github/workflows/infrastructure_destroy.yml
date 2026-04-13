@@ -1,7 +1,7 @@
 name: Infrastructure Destruction (Terraform Destroy)
 
 on:
-  workflow_dispatch: # Manual trigger only for safety
+  workflow_dispatch: # 안전을 위해 수동 실행만 허용
 
 jobs:
   terraform_destroy:
@@ -19,6 +19,10 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Notify Destroy Start
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "⚠️ **[Terraform]** 인프라 삭제(Destroy)를 시작합니다! 모든 서버와 설정이 제거됩니다."}' ${{ secrets.ACTION_WEBOOK_URL }}
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
 
@@ -29,3 +33,12 @@ jobs:
     - name: Terraform Destroy
       run: terraform destroy -auto-approve
       working-directory: terraform
+
+    - name: Notify Destroy Success
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "🔥 **[Terraform]** 인프라 삭제가 성공적으로 완료되었습니다. 프로젝트가 깨끗하게 정리되었습니다."}' ${{ secrets.ACTION_WEBOOK_URL }}
+
+    - name: Notify Failure
+      if: failure()
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "🚨 **[Destroy Error]** 인프라 삭제 중 오류가 발생했습니다! 일부 리소스가 남아있을 수 있으니 콘솔을 확인하세요."}' ${{ secrets.ACTION_WEBOOK_URL }}

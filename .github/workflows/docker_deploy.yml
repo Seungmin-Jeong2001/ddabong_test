@@ -1,12 +1,7 @@
 name: Docker Build and K8s Rollout (App Update)
 
 on:
-  #push:
-    # branches: [ main ]
-    # paths:
-    #   - 'web_docker/**'
-    #   - 'k8s/**'
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch: # 수동 실행
 
 jobs:
   build-and-push:
@@ -15,6 +10,10 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
+
+    - name: Notify Build Start
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "📦 **[Docker]** 새로운 앱 빌드 및 푸시를 시작합니다..."}' ${{ secrets.ACTION_WEBOOK_URL }}
 
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
@@ -29,6 +28,10 @@ jobs:
         push: true
         tags: jeongseungmin/ddabong_jeong:latest
 
+    - name: Notify Build Success
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "✅ **[Docker]** 이미지 빌드 및 도커 허브 푸시 완료!"}' ${{ secrets.ACTION_WEBOOK_URL }}
+
   k8s-rollout:
     name: K8s Rollout Update
     needs: build-and-push
@@ -37,35 +40,56 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Notify Rollout Start
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "🔄 **[K8s]** 서비스 업데이트(Rollout) 및 모니터링 재설정을 시작합니다..."}' ${{ secrets.ACTION_WEBOOK_URL }}
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
 
-    - name: Get Server IP from Terraform
+    - name: Get Infrastructure Info from Terraform
       id: terraform_output
       env:
         GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
         TF_VAR_gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
         TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+        TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         TF_VAR_ssh_pub_key: ${{ secrets.SSH_PUB_KEY }}
       run: |
         cd terraform
         terraform init
+        # IP와 터널 토큰을 모두 가져와야 Ansible이 정상 작동합니다.
         echo "server_ip=$(terraform output -raw server_ip)" >> $GITHUB_OUTPUT
+        echo "tunnel_token=$(terraform output -raw tunnel_token)" >> $GITHUB_OUTPUT
 
     - name: Set up SSH Key
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        for i in {1..12}; do
-          ssh-keyscan -H ${{ steps.terraform_output.outputs.server_ip }} >> ~/.ssh/known_hosts && break || sleep 10
-        done
+        # SSH 준비 확인
+        ssh-keyscan -H ${{ steps.terraform_output.outputs.server_ip }} >> ~/.ssh/known_hosts
 
     - name: Run Ansible to Deploy App & Monitoring Stack
       run: |
+        # steps.terraform_output에서 가져온 변수들을 사용합니다.
         ansible-playbook -i "${{ steps.terraform_output.outputs.server_ip }}," ansible/playbook.yml \
           -u ubuntu \
           --private-key ~/.ssh/id_rsa \
-          --extra-vars "tunnel_token=${{ needs.terraform.outputs.tunnel_token }} discord_webhook_url=${{ secrets.DISCORD_WEBHOOK_URL }}"
+          --extra-vars "tunnel_token=${{ steps.terraform_output.outputs.tunnel_token }} discord_webhook_url=${{ secrets.DISCORD_WEBHOOK_URL }}"
 
+    - name: Final App Rollout Restart
+      run: |
+        # 최신 이미지를 반영하기 위해 K8s 재시작
+        ssh -i ~/.ssh/id_rsa ubuntu@${{ steps.terraform_output.outputs.server_ip }} \
+          "KUBECONFIG=~/.kube/config kubectl rollout restart deployment/cat-web-deployment"
+
+    - name: Notify All Success
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "🎉 **[Update Finish]** 앱 업데이트 및 배포가 성공적으로 완료되었습니다!"}' ${{ secrets.ACTION_WEBOOK_URL }}
+
+    - name: Notify Failure
+      if: failure()
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "❌ **[Update Error]** 업데이트 과정 중 오류가 발생했습니다. 로그를 확인하세요."}' ${{ secrets.ACTION_WEBOOK_URL }}

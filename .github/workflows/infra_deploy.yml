@@ -1,7 +1,7 @@
 name: Infrastructure and Deployment (Terraform, Ansible, K8s)
 
 on:
-  workflow_dispatch: # 수동 실행
+  workflow_dispatch:
 
 jobs:
   terraform:
@@ -22,6 +22,10 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Notify Terraform Start
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "🚀 **[Terraform]** GCP 인스턴스 생성을 시작합니다..."}' ${{ secrets.ACTION_WEBOOK_URL }}
+
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
 
@@ -40,6 +44,10 @@ jobs:
         echo "server_ip=$(terraform output -raw server_ip)" >> $GITHUB_OUTPUT
         echo "tunnel_token=$(terraform output -raw tunnel_token)" >> $GITHUB_OUTPUT
 
+    - name: Notify Terraform Success
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "✅ **[Terraform]** 인스턴스 생성 완료! IP: `${{ steps.terraform_output.outputs.server_ip }}`"}' ${{ secrets.ACTION_WEBOOK_URL }}
+
   ansible-setup:
     name: Ansible Setup k3s & Monitoring
     needs: terraform
@@ -48,14 +56,15 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Notify Ansible Start
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "🛠️ **[Ansible]** 서버 환경 설정(K3s, Tunnel, Monitoring)을 시작합니다..."}' ${{ secrets.ACTION_WEBOOK_URL }}
+
     - name: Set up SSH Key
       run: |
         mkdir -p ~/.ssh
-        # SSH 개인키 생성 및 줄바꿈 처리
         echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        
-        # [수정] 서버 부팅 및 SSH 서비스 준비 대기 로직 (최대 10회 시도)
         echo "Waiting for SSH to be ready on ${{ needs.terraform.outputs.server_ip }}..."
         for i in {1..10}; do
           ssh-keyscan -H ${{ needs.terraform.outputs.server_ip }} >> ~/.ssh/known_hosts && break || (echo "Retrying in 10 seconds..." && sleep 10)
@@ -63,11 +72,15 @@ jobs:
 
     - name: Run Ansible Playbook
       run: |
-        # [수정] discord_webhook_url 변수를 extra-vars로 명시적 전달
         ansible-playbook -i "${{ needs.terraform.outputs.server_ip }}," ansible/playbook.yml \
           -u ubuntu \
           --private-key ~/.ssh/id_rsa \
           --extra-vars "tunnel_token=${{ needs.terraform.outputs.tunnel_token }} discord_webhook_url=${{ secrets.DISCORD_WEBHOOK_URL }}"
+
+    - name: Notify Ansible Success
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "✅ **[Ansible]** 서버 환경 설정 및 모니터링 배포 완료!"}' ${{ secrets.ACTION_WEBOOK_URL }}
+
 
   k8s-deploy:
     name: Final Rollout
@@ -77,15 +90,28 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Notify Rollout Start
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "🔄 **[K8s]** 서비스 재시작(Rollout)을 진행합니다..."}' ${{ secrets.ACTION_WEBOOK_URL }}
+
     - name: Set up SSH Key
       run: |
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ needs.terraform.outputs.server_ip }} >> ~/.ssh/known_hosts
-        
+
     - name: App Rollout Restart
       run: |
         # KUBECONFIG 경로를 명시적으로 지정하여 권한 에러 방지
         ssh -i ~/.ssh/id_rsa ubuntu@${{ needs.terraform.outputs.server_ip }} \
           "KUBECONFIG=~/.kube/config kubectl rollout restart deployment/cat-web-deployment"
+
+    - name: Notify All Success
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "🎉 **[Finish]** 모든 배포 공정이 성공적으로 마무리되었습니다! \n🔗 접속 주소: `https://bucheongoyangijanggun.com`"}' ${{ secrets.ACTION_WEBOOK_URL }}
+
+    - name: Notify Failure
+      if: failure()
+      run: |
+        curl -X POST -H "Content-Type: application/json" -d '{"content": "❌ **[Error]** 배포 과정 중 오류가 발생했습니다. Actions 로그를 확인하세요."}' ${{ secrets.ACTION_WEBOOK_URL }}
