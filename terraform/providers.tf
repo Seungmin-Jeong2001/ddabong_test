@@ -9,6 +9,11 @@ terraform {
       version = "~> 4.0"
     }
   }
+
+  backend "gcs" {
+    bucket = "terraform-state-bucheong-cat"
+    prefix = "terraform/state"
+  }
 }
 
 provider "google" {
