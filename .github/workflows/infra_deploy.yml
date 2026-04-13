@@ -1,8 +1,8 @@
 name: Infrastructure and Deployment (Terraform, Ansible, Docker, K8s)
 
 on:
-  push:
-    branches: [ main ]
+  # push:
+  #   branches: [ main ]
   workflow_dispatch: # Manual trigger
 
 jobs:
