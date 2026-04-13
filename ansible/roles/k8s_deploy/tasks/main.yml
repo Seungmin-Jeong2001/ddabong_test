@@ -1,4 +1,5 @@
----
+# ansible/roles/k8s_deploy/tasks/main.yml
+
 - name: Ensure manifest directories exist on remote
   file:
     path: /home/{{ ansible_user }}/k8s/{{ item }}
@@ -12,13 +13,20 @@
     src: files/manifests.yaml
     dest: /home/{{ ansible_user }}/k8s/app/manifests.yaml
 
-- name: Copy monitoring manifests (Templates)
+- name: Copy Alertmanager manifest (Template)
   template:
     src: k8s/alertmanager.yaml.j2
     dest: /home/{{ ansible_user }}/k8s/monitoring/alertmanager.yaml
 
+# [추가] Prometheus 템플릿 복사 (여기에 Rule이 포함됨)
+- name: Copy Prometheus manifest (Template)
+  template:
+    src: k8s/prometheus.yaml.j2
+    dest: /home/{{ ansible_user }}/k8s/monitoring/prometheus.yaml
+
 - name: Apply all K8s manifests
   shell: kubectl apply -R -f /home/{{ ansible_user }}/k8s/
+  # -R 옵션 덕분에 app/ 폴더와 monitoring/ 폴더 내의 모든 파일이 적용됩니다.
 
 - name: Rollout restart deployment
   shell: kubectl rollout restart deployment/cat-web-deployment
