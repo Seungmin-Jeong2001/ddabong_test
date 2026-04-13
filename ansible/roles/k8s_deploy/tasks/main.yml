@@ -17,18 +17,21 @@
     src: k8s/alertmanager.yaml.j2
     dest: /home/{{ ansible_user }}/k8s/monitoring/alertmanager.yaml
 
+
 - name: Apply kube-state-metrics
-  shell: |
-    export KUBECONFIG=/home/{{ ansible_user }}/.kube/config
-    kubectl apply -f https://github.com/kubernetes/kube-state-metrics/releases/latest/download/kube-state-metrics-standard.yaml
+  command: >
+    kubectl apply -k https://github.com/kubernetes/kube-state-metrics/examples/standard?ref=v2.10.1
+  environment:
+    KUBECONFIG: /home/{{ ansible_user }}/.kube/config
 
 - name: Apply all K8s manifests
-  shell: |
-    export KUBECONFIG=/home/{{ ansible_user }}/.kube/config
+  command: >
     kubectl apply -R -f /home/{{ ansible_user }}/k8s/
-
+  environment:
+    KUBECONFIG: /home/{{ ansible_user }}/.kube/config
 
 - name: Rollout restart deployment
-  shell: |
-    export KUBECONFIG=/home/{{ ansible_user }}/.kube/config
+  command: >
     kubectl rollout restart deployment/cat-web-deployment
+  environment:
+    KUBECONFIG: /home/{{ ansible_user }}/.kube/config
