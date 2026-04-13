@@ -1,7 +1,7 @@
 name: Infrastructure and Deployment (Terraform, Ansible, K8s)
 
 on:
-  workflow_dispatch: # 수동 실행 버튼으로 동작
+  workflow_dispatch: # 수동 실행
 
 jobs:
   terraform:
@@ -14,7 +14,7 @@ jobs:
       TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
       TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       TF_VAR_ssh_pub_key: ${{ secrets.SSH_PUB_KEY }}
-      TF_VAR_ssh_user: "ubuntu" # SSH 접속 계정 명시
+      TF_VAR_ssh_user: "ubuntu"
     outputs:
       server_ip: ${{ steps.terraform_output.outputs.server_ip }}
       tunnel_token: ${{ steps.terraform_output.outputs.tunnel_token }}
@@ -51,20 +51,23 @@ jobs:
     - name: Set up SSH Key
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        # SSH 개인키 생성 및 줄바꿈 처리
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        # 서버 준비될 때까지 기다리며 스캔
-        ssh-keyscan -H ${{ needs.terraform.outputs.server_ip }} >> ~/.ssh/known_hosts
+        
+        # [수정] 서버 부팅 및 SSH 서비스 준비 대기 로직 (최대 10회 시도)
+        echo "Waiting for SSH to be ready on ${{ needs.terraform.outputs.server_ip }}..."
+        for i in {1..10}; do
+          ssh-keyscan -H ${{ needs.terraform.outputs.server_ip }} >> ~/.ssh/known_hosts && break || (echo "Retrying in 10 seconds..." && sleep 10)
+        done
 
     - name: Run Ansible Playbook
       run: |
-        # [해결] --extra-vars 에 discord_webhook_url을 명시적으로 추가하여 Ansible 에러 해결
+        # [수정] discord_webhook_url 변수를 extra-vars로 명시적 전달
         ansible-playbook -i "${{ needs.terraform.outputs.server_ip }}," ansible/playbook.yml \
           -u ubuntu \
           --private-key ~/.ssh/id_rsa \
-          --extra-vars "tunnel_token=${{ needs.terraform.outputs.tunnel_token }} discord_webhook_url=${{ secrets.DISCORD_WEBHOOK_URL}}"
-
-  # [Docker 빌드 단계는 요청대로 제거되었습니다]
+          --extra-vars "tunnel_token=${{ needs.terraform.outputs.tunnel_token }} discord_webhook_url=${{ secrets.DISCORD_WEBHOOK_URL }}"
 
   k8s-deploy:
     name: Final Rollout
@@ -77,13 +80,12 @@ jobs:
     - name: Set up SSH Key
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ needs.terraform.outputs.server_ip }} >> ~/.ssh/known_hosts
 
     - name: App Rollout Restart
       run: |
-        # 이미 Ansible의 k8s_deploy 역할에서 모든 manifests가 적용되었으므로, 
-        # 여기서는 최신 이미지를 불러오기 위한 재시작 명령만 수행합니다.
+        # K8s 리소스를 최신 상태로 갱신
         ssh -i ~/.ssh/id_rsa ubuntu@${{ needs.terraform.outputs.server_ip }} \
           "kubectl rollout restart deployment/cat-web-deployment"
