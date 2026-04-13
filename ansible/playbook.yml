@@ -1,5 +1,5 @@
 ---
-- name: Configure Bucheong Cat Server
+- name: Setup k3s on Bucheong Cat Server
   hosts: all
   become: yes
   tasks:
@@ -7,21 +7,49 @@
       apt:
         update_cache: yes
 
-    - name: Install Nginx
+    - name: Install dependencies
       apt:
-        name: nginx
+        name:
+          - curl
+          - ca-certificates
+          - gnupg
         state: present
 
-    - name: Copy index.html from template
-      template:
-        src: index.html.j2
-        dest: /var/www/html/index.html
-        owner: www-data
-        group: www-data
+    - name: Check if k3s is installed
+      stat:
+        path: /usr/local/bin/k3s
+      register: k3s_bin
+
+    - name: Install k3s
+      shell: curl -sfL https://get.k3s.io | sh -
+      when: not k3s_bin.stat.exists
+
+    - name: Wait for k3s to be ready
+      wait_for:
+        path: /etc/rancher/k3s/k3s.yaml
+        state: present
+
+    - name: Ensure /etc/rancher/k3s/k3s.yaml is readable for the user
+      file:
+        path: /etc/rancher/k3s/k3s.yaml
         mode: '0644'
 
-    - name: Ensure Nginx is running
-      service:
-        name: nginx
-        state: started
-        enabled: yes
+    - name: Symlink k3s config to .kube/config
+      file:
+        path: "/home/{{ ansible_user }}/.kube"
+        state: directory
+        mode: '0755'
+
+    - name: Copy k3s config to user home
+      copy:
+        src: /etc/rancher/k3s/k3s.yaml
+        dest: "/home/{{ ansible_user }}/.kube/config"
+        remote_src: yes
+        owner: "{{ ansible_user }}"
+        mode: '0600'
+
+    - name: Update KUBECONFIG to point to localhost
+      replace:
+        path: "/home/{{ ansible_user }}/.kube/config"
+        regexp: '127.0.0.1'
+        replace: 'localhost'
