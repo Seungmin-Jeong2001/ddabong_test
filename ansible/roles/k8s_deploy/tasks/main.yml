@@ -12,19 +12,29 @@
     src: files/manifests.yaml
     dest: /home/{{ ansible_user }}/k8s/app/manifests.yaml
 
-- name: Apply monitoring manifests (Templates)
+- name: Copy Alertmanager manifest (Template)
   template:
     src: k8s/alertmanager.yaml.j2
     dest: /home/{{ ansible_user }}/k8s/monitoring/alertmanager.yaml
 
+- name: Copy Prometheus manifest (Template)
+  template:
+    src: k8s/prometheus.yaml.j2
+    dest: /home/{{ ansible_user }}/k8s/monitoring/prometheus.yaml
 
 - name: Apply kube-state-metrics
   command: >
-    kubectl apply -k https://github.com/kubernetes/kube-state-metrics/examples/standard?ref=v2.10.1
+    kubectl apply -f https://raw.githubusercontent.com/kubernetes/kube-state-metrics/v2.10.1/examples/standard/{{ item }}
+  loop:
+    - service-account.yaml
+    - cluster-role.yaml
+    - cluster-role-binding.yaml
+    - deployment.yaml
+    - service.yaml
   environment:
     KUBECONFIG: /home/{{ ansible_user }}/.kube/config
 
-- name: Apply all K8s manifests
+- name: Apply all local K8s manifests (App & Monitoring)
   command: >
     kubectl apply -R -f /home/{{ ansible_user }}/k8s/
   environment:
