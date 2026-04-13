@@ -7,32 +7,22 @@
     - app
     - monitoring
 
-- name: Apply kube-state-metrics
-  shell: |
-    KUBECONFIG=~/.kube/config kubectl apply -k https://github.com/kubernetes/kube-state-metrics/examples/standard?ref=v2.10.1
-  become: no
-
 - name: Copy app manifests
   copy:
     src: files/manifests.yaml
     dest: /home/{{ ansible_user }}/k8s/app/manifests.yaml
 
-- name: Copy Alertmanager manifest (Template)
+- name: Copy monitoring manifests (Templates)
   template:
     src: k8s/alertmanager.yaml.j2
     dest: /home/{{ ansible_user }}/k8s/monitoring/alertmanager.yaml
 
-- name: Copy Prometheus manifest (Template)
-  template:
-    src: k8s/prometheus.yaml.j2
-    dest: /home/{{ ansible_user }}/k8s/monitoring/prometheus.yaml
-
-- name: Apply App and Monitoring manifests
+- name: Apply all K8s manifests
   shell: |
-    KUBECONFIG=~/.kube/config kubectl apply -R -f /home/{{ ansible_user }}/k8s/app/
-    KUBECONFIG=~/.kube/config kubectl apply -R -f /home/{{ ansible_user }}/k8s/monitoring/
-  become: no
+    export KUBECONFIG=/home/{{ ansible_user }}/.kube/config
+    kubectl apply -R -f /home/{{ ansible_user }}/k8s/
 
 - name: Rollout restart deployment
-  shell: KUBECONFIG=~/.kube/config kubectl rollout restart deployment/cat-web-deployment
-  become: no
+  shell: |
+    export KUBECONFIG=/home/{{ ansible_user }}/.kube/config
+    kubectl rollout restart deployment/cat-web-deployment
