@@ -7,68 +7,37 @@ data:
   prometheus.yml: |
     global:
       scrape_interval: 15s
-
     alerting:
       alertmanagers:
-        - static_configs:
-            - targets:
-                - alertmanager-service:9093
-
+      - static_configs:
+        - targets:
+          - alertmanager-service:9093
     rule_files:
-      - /etc/prometheus/alert_rules.yml
-
+      - "/etc/prometheus/rules.yml"
     scrape_configs:
-      - job_name: prometheus
-        static_configs:
-          - targets:
-              - localhost:9090
-
-      - job_name: k3s-nodes
+      - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
-          - role: node
-
-      # [추가] kube-state-metrics 수집 설정
-      # 파드 개수, HPA 상태 등의 데이터를 가져오기 위해 필수입니다.
-      - job_name: 'kube-state-metrics'
-        static_configs:
-          - targets: ['kube-state-metrics.kube-system.svc.cluster.local:8080']
-
-  alert_rules.yml: |
-{% raw %}
+        - role: pod
+  rules.yml: |
     groups:
-      - name: custom-alerts
-        rules:
-          # 1. 인스턴스 다운 알림
-          - alert: InstanceDown
-            expr: up == 0
-            for: 1m
-            labels:
-              severity: critical
-            annotations:
-              summary: "서버 다운: {{ $labels.instance }}"
-              description: "서버가 1분 이상 응답하지 않습니다."
-
-          # 2. 웹 서비스 파드 0개 알림 (kube-state-metrics 지표 사용)
-          - alert: WebServiceDown
-            expr: kube_deployment_status_replicas_available{deployment="cat-web-deployment"} == 0
-            for: 30s
-            labels:
-              severity: critical
-            annotations:
-              summary: "🚨 긴급: 웹 서비스 중단"
-              description: "cat-web-deployment의 사용 가능한 파드가 0개입니다. 즉시 확인이 필요합니다!"
-
-          # 3. HPA 최대 용량 도달 알림 (kube-state-metrics 지표 사용)
-          - alert: HPAAtMaxCapacity
-            expr: kube_horizontalpodautoscaler_status_current_replicas{horizontalpodautoscaler="cat-web-hpa"} == kube_horizontalpodautoscaler_spec_max_replicas{horizontalpodautoscaler="cat-web-hpa"}
-            for: 2m
-            labels:
-              severity: warning
-            annotations:
-              summary: "⚠️ 경고: HPA 최대 용량 도달"
-              description: "현재 파드 수가 최대치({{ $value }}개)에 도달했습니다. 추가 트래픽 대응이 어려울 수 있습니다."
-{% endraw %}
-
+    - name: cat-server-alerts
+      rules:
+      - alert: CatServerDown
+        expr: kube_pod_status_phase{pod=~"cat-web-deployment-.*", phase!="Running"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "서버 다운 알림: 부천 고양이 장군"
+          description: "부천 고양이 장군 웹 서버 파드가 Running 상태가 아닙니다."
+      - alert: HPAReplicasAtMax
+        expr: kube_hpa_status_current_replicas{hpa="cat-web-hpa"} >= kube_hpa_spec_max_replicas{hpa="cat-web-hpa"}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HPA 최대 복제본 도달"
+          description: "cat-web 앱이 HPA 최대치(3)에 도달했습니다. 부하가 높습니다."
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -86,21 +55,20 @@ spec:
         app: prometheus
     spec:
       containers:
-        - name: prometheus
-          image: prom/prometheus:latest
-          args:
-            - --config.file=/etc/prometheus/prometheus.yml
-            - --storage.tsdb.path=/prometheus
-          ports:
-            - containerPort: 9090
-          volumeMounts:
-            - name: config-volume
-              mountPath: /etc/prometheus
+      - name: prometheus
+        image: prom/prometheus:latest
+        args:
+          - "--config.file=/etc/prometheus/prometheus.yml"
+          - "--storage.tsdb.path=/prometheus"
+        ports:
+        - containerPort: 9090
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
       volumes:
-        - name: config-volume
-          configMap:
-            name: prometheus-config
-
+      - name: config
+        configMap:
+          name: prometheus-config
 ---
 apiVersion: v1
 kind: Service
@@ -111,7 +79,6 @@ spec:
   selector:
     app: prometheus
   ports:
-    - name: http
-      protocol: TCP
+    - protocol: TCP
       port: 9090
       targetPort: 9090
