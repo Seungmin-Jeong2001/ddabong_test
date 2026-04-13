@@ -62,7 +62,7 @@ jobs:
         ansible-playbook -i "${{ needs.terraform.outputs.server_ip }}," ansible/playbook.yml \
           -u ubuntu \
           --private-key ~/.ssh/id_rsa \
-          --extra-vars "tunnel_token=${{ needs.terraform.outputs.tunnel_token }} discord_webhook_url=${{ secrets.DISCORD_WEBHOOK_URL }}"
+          --extra-vars "tunnel_token=${{ needs.terraform.outputs.tunnel_token }} discord_webhook_url=${{ secrets.DISCORD_WEBHOOK_URL}}"
 
   # [Docker 빌드 단계는 요청대로 제거되었습니다]
 

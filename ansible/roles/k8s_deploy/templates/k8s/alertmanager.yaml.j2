@@ -13,7 +13,7 @@ data:
     receivers:
     - name: 'discord'
       webhook_configs:
-      - url: '{{ discord_webhook_url }}'
+      - url: '{{ discord_webhook_url | default("") }}'
         send_resolved: true
 ---
 apiVersion: apps/v1
