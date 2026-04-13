@@ -31,12 +31,6 @@ variable "cloudflare_account_id" {
   type        = string
 }
 
-variable "cloudflare_tunnel_secret" {
-  description = "32-character base64 encoded secret for the tunnel"
-  type        = string
-  sensitive   = true
-}
-
 variable "ssh_user" {
   description = "The SSH user name"
   type        = string

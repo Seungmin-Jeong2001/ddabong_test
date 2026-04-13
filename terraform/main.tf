@@ -48,10 +48,15 @@ resource "google_compute_instance" "web_server" {
   }
 }
 
+resource "random_password" "tunnel_secret" {
+  length  = 32
+  special = false
+}
+
 resource "cloudflare_tunnel" "cat_tunnel" {
   account_id = var.cloudflare_account_id
   name       = "bucheong-cat-tunnel"
-  secret     = var.cloudflare_tunnel_secret
+  secret     = base64encode(random_password.tunnel_secret.result)
 }
 
 resource "cloudflare_tunnel_config" "cat_config" {
