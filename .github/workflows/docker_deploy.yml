@@ -2,10 +2,10 @@ name: Docker Build and K8s Rollout (App Update)
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - 'web_docker/**'
-      - 'k8s/**'
+    # branches: [ main ]
+    # paths:
+    #   - 'web_docker/**'
+    #   - 'k8s/**'
   workflow_dispatch: # Manual trigger
 
 jobs:
