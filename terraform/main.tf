@@ -1,95 +1,42 @@
-resource "google_compute_network" "vpc_network" {
-  name = "cat-monitor-network"
-}
-
-resource "google_compute_subnetwork" "vpc_subnet" {
-  name          = "cat-monitor-subnet"
-  ip_cidr_range = "10.0.1.0/24"
-  network       = google_compute_network.vpc_network.id
-}
-
-resource "google_compute_firewall" "allow_ssh" {
-  name    = "allow-ssh-only"
-  network = google_compute_network.vpc_network.name
-
-  allow {
-    protocol = "tcp"
-    ports    = ["22"]
+terraform {
+  required_providers {
+    google = { source = "hashicorp/google", version = "~> 5.0" }
+    cloudflare = { source = "cloudflare/cloudflare", version = "~> 4.0" }
   }
-
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["ssh-server"]
-}
-
-resource "google_compute_instance" "web_server" {
-  name         = "bucheong-cat-server"
-  machine_type = "e2-small"
-  zone         = var.gcp_zone
-
-  boot_disk {
-    initialize_params {
-      image = "ubuntu-os-cloud/ubuntu-2204-lts"
-    }
-  }
-
-  network_interface {
-    network    = google_compute_network.vpc_network.id
-    subnetwork = google_compute_subnetwork.vpc_subnet.id
-
-    access_config {
-      // Keep ephemeral public IP for Ansible management
-    }
-  }
-
-  tags = ["ssh-server"]
-
-  metadata = {
-    ssh-keys = "${var.ssh_user}:${var.ssh_pub_key}"
+  backend "gcs" {
+    bucket = "terraform-state-bucheong-cat"
+    prefix = "terraform/state"
   }
 }
 
-resource "random_password" "tunnel_secret" {
-  length  = 32
-  special = false
+provider "google" {
+  project = var.gcp_project_id
+  region  = var.gcp_region
+  zone    = var.gcp_zone
 }
 
-resource "cloudflare_zero_trust_tunnel_cloudflared" "cat_tunnel" {
-  account_id = var.cloudflare_account_id
-  name       = "bucheong-cat-tunnel"
-  secret     = base64encode(random_password.tunnel_secret.result)
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
 }
 
-resource "cloudflare_zero_trust_tunnel_cloudflared_config" "cat_config" {
-  account_id = var.cloudflare_account_id
-  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.cat_tunnel.id
-
-  config {
-    ingress_rule {
-      hostname = "bucheongoyangijanggun.com"
-      service  = "http://localhost:80"
-    }
-    ingress_rule {
-      hostname = "www.bucheongoyangijanggun.com"
-      service  = "http://localhost:80"
-    }
-    ingress_rule {
-      service = "http_status:404"
-    }
-  }
+module "network" {
+  source       = "./modules/network"
+  network_name = "cat-monitor-network"
+  subnet_name  = "cat-monitor-subnet"
 }
 
-resource "cloudflare_record" "tunnel_record" {
-  zone_id = var.cloudflare_zone_id
-  name    = "bucheongoyangijanggun.com"
-  content = "${cloudflare_zero_trust_tunnel_cloudflared.cat_tunnel.id}.cfargotunnel.com"
-  type    = "CNAME"
-  proxied = true
+module "compute" {
+  source      = "./modules/compute"
+  gcp_zone    = var.gcp_zone
+  network_id  = module.network.network_id
+  subnet_id   = module.network.subnet_id
+  ssh_user    = var.ssh_user
+  ssh_pub_key = var.ssh_pub_key
 }
 
-resource "cloudflare_record" "www" {
-  zone_id = var.cloudflare_zone_id
-  name    = "www"
-  content = "bucheongoyangijanggun.com"
-  type    = "CNAME"
-  proxied = true
+module "cloudflare" {
+  source                = "./modules/cloudflare"
+  cloudflare_account_id = var.cloudflare_account_id
+  cloudflare_zone_id    = var.cloudflare_zone_id
+  domain                = "bucheongoyangijanggun.com"
 }
