@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = ">= 5.0"
+    }
+  }
+}
+
 resource "google_compute_instance" "web_server" {
   name         = "bucheong-cat-server"
   machine_type = "e2-small"
