@@ -3,13 +3,13 @@
   stat:
     path: /usr/local/bin/k3s
   register: k3s_bin
-
-- name: Install k3s (Disable Traefik)
-  shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" sh -
+  
+- name: Install k3s (Disable Traefik & Set Config Permission)
+  shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik --write-kubeconfig-mode 644" sh -
   when: not k3s_bin.stat.exists
 
 - name: Ensure k3s is updated to disable traefik
-  shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik" sh -
+  shell: curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--disable traefik --write-kubeconfig-mode 644" sh -
   when: k3s_bin.stat.exists
 
 - name: Wait for k3s to be ready

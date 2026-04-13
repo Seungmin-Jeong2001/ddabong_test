@@ -83,9 +83,9 @@ jobs:
         echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ needs.terraform.outputs.server_ip }} >> ~/.ssh/known_hosts
-
+        
     - name: App Rollout Restart
       run: |
-        # K8s 리소스를 최신 상태로 갱신
+        # KUBECONFIG 경로를 명시적으로 지정하여 권한 에러 방지
         ssh -i ~/.ssh/id_rsa ubuntu@${{ needs.terraform.outputs.server_ip }} \
-          "kubectl rollout restart deployment/cat-web-deployment"
+          "KUBECONFIG=~/.kube/config kubectl rollout restart deployment/cat-web-deployment"
