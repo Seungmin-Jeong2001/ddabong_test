@@ -44,10 +44,10 @@ spec:
           - "--config.file=/etc/alertmanager/alertmanager.yml"
           - "--storage.path=/alertmanager"
         ports:
-        - containerPort: 9093
+          - containerPort: 9093
         volumeMounts:
-        - name: config
-          mountPath: /etc/alertmanager
+          - name: config
+            mountPath: /etc/alertmanager
 
       # =========================
       # Discord Sidecar
@@ -55,18 +55,20 @@ spec:
       - name: discord-sidecar
         image: benjojo/alertmanager-discord:latest
         ports:
-        - containerPort: 9094
+          - containerPort: 9094
         env:
-        - name: DISCORD_WEBHOOK
-          valueFrom:
-            secretKeyRef:
-              name: discord-webhook-secret
-              key: DISCORD_WEBHOOK
+          - name: DISCORD_WEBHOOK
+            valueFrom:
+              secretKeyRef:
+                name: discord-webhook-secret
+                key: DISCORD_WEBHOOK
+        args:
+          - "--listen-address=:9094"
 
       volumes:
-      - name: config
-        configMap:
-          name: alertmanager-config
+        - name: config
+          configMap:
+            name: alertmanager-config
 ---
 apiVersion: v1
 kind: Service
