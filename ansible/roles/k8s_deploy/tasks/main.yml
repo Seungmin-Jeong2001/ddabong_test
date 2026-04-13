@@ -7,6 +7,14 @@
     - app
     - monitoring
 
+- name: Create Discord webhook secret
+  shell: |
+    kubectl create secret generic discord-webhook-secret \
+      --from-literal=url='{{ discord_webhook_url }}' \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /home/{{ ansible_user }}/.kube/config
+
 - name: Copy app manifests
   copy:
     src: files/manifests.yaml
