@@ -58,7 +58,9 @@ jobs:
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H ${{ steps.terraform_output.outputs.server_ip }} >> ~/.ssh/known_hosts
+        for i in {1..12}; do
+          ssh-keyscan -H ${{ steps.terraform_output.outputs.server_ip }} >> ~/.ssh/known_hosts && break || sleep 10
+        done
 
     - name: Rollout New Image via SSH
       run: |
