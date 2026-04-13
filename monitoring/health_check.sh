@@ -11,13 +11,10 @@ if [ "$HTTP_STATUS" -ne 200 ]; then
   echo "Site is DOWN (HTTP $HTTP_STATUS). Sending alert..."
   
   # Prepare Discord message
-  MESSAGE="🚨 **ALERT: Server is DOWN!** 🚨\nURL: $URL\nHTTP Status: $HTTP_STATUS\nTime: $(date)"
+  MESSAGE="🚨 **부천 고양이 장군 서버 다운 알림** 🚨\nURL: $URL\n상태: $HTTP_STATUS\n시간: $(date)"
   
   # Send to Discord
-  curl -H "Content-Type: application/json" \
-       -X POST \
-       -d "{\"content\": \"$MESSAGE\"}" \
-       "$WEBHOOK_URL"
+  curl -H "Content-Type: application/json"        -X POST        -d "{\"content\": \"$MESSAGE\"}"        "$WEBHOOK_URL"
 else
   echo "Site is UP (HTTP $HTTP_STATUS)."
 fi

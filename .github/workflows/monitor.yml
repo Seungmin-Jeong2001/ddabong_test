@@ -16,5 +16,4 @@ jobs:
 
     - name: Run Health Check Script
       run: |
-        chmod +x monitoring/health_check.sh
         ./monitoring/health_check.sh

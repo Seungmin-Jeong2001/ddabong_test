@@ -1,0 +1,34 @@
+---
+- name: Download cloudflared deb package
+  get_url:
+    url: "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb"
+    dest: "/tmp/cloudflared.deb"
+
+- name: Install cloudflared
+  apt:
+    deb: "/tmp/cloudflared.deb"
+
+- name: Create cloudflared systemd service
+  copy:
+    dest: /etc/systemd/system/cloudflared.service
+    content: |
+      [Unit]
+      Description=Cloudflare Tunnel
+      After=network.target
+
+      [Service]
+      Type=simple
+      User=root
+      ExecStart=/usr/local/bin/cloudflared tunnel run --token {{ tunnel_token }}
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Start cloudflared service
+  systemd:
+    name: cloudflared
+    state: restarted
+    enabled: yes
+    daemon_reload: yes

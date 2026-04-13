@@ -1,0 +1,19 @@
+---
+- name: Copy app manifests to remote
+  copy:
+    src: files/manifests.yaml
+    dest: /home/{{ ansible_user }}/manifests.yaml
+
+- name: Copy monitoring manifests to remote
+  copy:
+    src: files/monitoring/
+    dest: /home/{{ ansible_user }}/monitoring/
+
+- name: Apply App Manifests
+  shell: kubectl apply -f /home/{{ ansible_user }}/manifests.yaml
+
+- name: Apply Monitoring Manifests
+  shell: kubectl apply -f /home/{{ ansible_user }}/monitoring/
+
+- name: Force rollout restart if image updated
+  shell: kubectl rollout restart deployment/cat-web-deployment

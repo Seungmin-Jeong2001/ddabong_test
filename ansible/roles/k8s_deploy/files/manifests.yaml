@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cat-web-deployment
+  labels:
+    app: cat-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cat-web
+  template:
+    metadata:
+      labels:
+        app: cat-web
+    spec:
+      containers:
+      - name: cat-web
+        image: jeongseungmin/ddabong_jeong:latest
+        ports:
+        - containerPort: 80
+        imagePullPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cat-web-service
+spec:
+  selector:
+    app: cat-web
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer

@@ -62,8 +62,9 @@ jobs:
           ssh-keyscan -H ${{ steps.terraform_output.outputs.server_ip }} >> ~/.ssh/known_hosts && break || sleep 10
         done
 
-    - name: Rollout New Image via SSH
+    - name: Run Ansible to Deploy App & Monitoring Stack
       run: |
-        scp -i ~/.ssh/id_rsa k8s/manifests.yaml ubuntu@${{ steps.terraform_output.outputs.server_ip }}:~/manifests.yaml
-        ssh -i ~/.ssh/id_rsa ubuntu@${{ steps.terraform_output.outputs.server_ip }} "kubectl apply -f ~/manifests.yaml"
-        ssh -i ~/.ssh/id_rsa ubuntu@${{ steps.terraform_output.outputs.server_ip }} "kubectl rollout restart deployment/cat-web-deployment"
+        ansible-playbook -i "${{ steps.terraform_output.outputs.server_ip }}," ansible/playbook.yml \
+          -u ubuntu \
+          --private-key ~/.ssh/id_rsa \
+          --extra-vars "tunnel_token=${{ steps.terraform_output.outputs.tunnel_token }}"
