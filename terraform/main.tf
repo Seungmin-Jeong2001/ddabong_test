@@ -51,7 +51,7 @@ resource "google_compute_instance" "web_server" {
 resource "cloudflare_record" "domain_a" {
   zone_id = var.cloudflare_zone_id
   name    = "bucheongoyangijanggun.com"
-  value   = google_compute_instance.web_server.network_interface.0.access_config.0.nat_ip
+  content = google_compute_instance.web_server.network_interface.0.access_config.0.nat_ip
   type    = "A"
   proxied = true
 }
@@ -59,7 +59,7 @@ resource "cloudflare_record" "domain_a" {
 resource "cloudflare_record" "www" {
   zone_id = var.cloudflare_zone_id
   name    = "www"
-  value   = "bucheongoyangijanggun.com"
+  content = "bucheongoyangijanggun.com"
   type    = "CNAME"
   proxied = true
 }
