@@ -1,19 +1,24 @@
 ---
-- name: Copy app manifests to remote
+- name: Ensure manifest directories exist on remote
+  file:
+    path: /home/{{ ansible_user }}/k8s/{{ item }}
+    state: directory
+  loop:
+    - app
+    - monitoring
+
+- name: Copy app manifests
   copy:
     src: files/manifests.yaml
-    dest: /home/{{ ansible_user }}/manifests.yaml
+    dest: /home/{{ ansible_user }}/k8s/app/manifests.yaml
 
-- name: Copy monitoring manifests to remote (Templates)
+- name: Copy monitoring manifests (Templates)
   template:
-    src: monitoring/alertmanager.yaml.j2
-    dest: /home/{{ ansible_user }}/monitoring/alertmanager.yaml
+    src: k8s/alertmanager.yaml.j2
+    dest: /home/{{ ansible_user }}/k8s/monitoring/alertmanager.yaml
 
-- name: Apply App Manifests
-  shell: kubectl apply -f /home/{{ ansible_user }}/manifests.yaml
+- name: Apply all K8s manifests
+  shell: kubectl apply -R -f /home/{{ ansible_user }}/k8s/
 
-- name: Apply Monitoring Manifests
-  shell: kubectl apply -f /home/{{ ansible_user }}/monitoring/
-
-- name: Force rollout restart if image updated
+- name: Rollout restart deployment
   shell: kubectl rollout restart deployment/cat-web-deployment
