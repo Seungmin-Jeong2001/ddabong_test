@@ -1,7 +1,9 @@
 ---
-- name: Setup k3s on Bucheong Cat Server
+- name: Setup k3s and Cloudflare Tunnel on Bucheong Cat Server
   hosts: all
   become: yes
+  vars:
+    cloudflared_version: "latest"
   tasks:
     - name: Update apt cache
       apt:
@@ -15,6 +17,7 @@
           - gnupg
         state: present
 
+    # K3s Installation
     - name: Check if k3s is installed
       stat:
         path: /usr/local/bin/k3s
@@ -29,18 +32,18 @@
         path: /etc/rancher/k3s/k3s.yaml
         state: present
 
-    - name: Ensure /etc/rancher/k3s/k3s.yaml is readable for the user
+    - name: Ensure /etc/rancher/k3s/k3s.yaml is readable
       file:
         path: /etc/rancher/k3s/k3s.yaml
         mode: '0644'
 
-    - name: Symlink k3s config to .kube/config
+    - name: Setup kubeconfig for user
       file:
         path: "/home/{{ ansible_user }}/.kube"
         state: directory
         mode: '0755'
 
-    - name: Copy k3s config to user home
+    - name: Copy kubeconfig
       copy:
         src: /etc/rancher/k3s/k3s.yaml
         dest: "/home/{{ ansible_user }}/.kube/config"
@@ -48,8 +51,43 @@
         owner: "{{ ansible_user }}"
         mode: '0600'
 
-    - name: Update KUBECONFIG to point to localhost
+    - name: Update kubeconfig server address
       replace:
         path: "/home/{{ ansible_user }}/.kube/config"
         regexp: '127.0.0.1'
         replace: 'localhost'
+
+    # Cloudflare Tunnel Installation
+    - name: Download cloudflared deb package
+      get_url:
+        url: "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb"
+        dest: "/tmp/cloudflared.deb"
+
+    - name: Install cloudflared
+      apt:
+        deb: "/tmp/cloudflared.deb"
+
+    - name: Create cloudflared systemd service
+      copy:
+        dest: /etc/systemd/system/cloudflared.service
+        content: |
+          [Unit]
+          Description=Cloudflare Tunnel
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=root
+          ExecStart=/usr/local/bin/cloudflared tunnel run --token {{ tunnel_token }}
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Start cloudflared service
+      systemd:
+        name: cloudflared
+        state: restarted
+        enabled: yes
+        daemon_reload: yes

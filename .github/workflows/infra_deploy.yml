@@ -8,7 +8,6 @@ on:
       - 'ansible/**'
   workflow_dispatch: # Manual trigger
 
-
 jobs:
   terraform:
     name: Terraform Apply
@@ -18,9 +17,12 @@ jobs:
       TF_VAR_gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
       TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TF_VAR_cloudflare_tunnel_secret: ${{ secrets.CLOUDFLARE_TUNNEL_SECRET }}
       TF_VAR_ssh_pub_key: ${{ secrets.SSH_PUB_KEY }}
     outputs:
       server_ip: ${{ steps.terraform_output.outputs.server_ip }}
+      tunnel_token: ${{ steps.terraform_output.outputs.tunnel_token }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -40,14 +42,15 @@ jobs:
       run: terraform apply -auto-approve
       working-directory: terraform
 
-    - name: Get Server IP from Terraform
+    - name: Get Terraform Outputs
       id: terraform_output
       run: |
         cd terraform
         echo "server_ip=$(terraform output -raw server_ip)" >> $GITHUB_OUTPUT
+        echo "tunnel_token=$(terraform output -raw tunnel_token)" >> $GITHUB_OUTPUT
 
-  ansible-setup-k3s:
-    name: Ansible Setup k3s
+  ansible-setup:
+    name: Ansible Setup k3s & Tunnel
     needs: terraform
     runs-on: ubuntu-latest
     steps:
@@ -65,7 +68,8 @@ jobs:
       run: |
         ansible-playbook -i "${{ needs.terraform.outputs.server_ip }}," ansible/playbook.yml \
           -u ubuntu \
-          --private-key ~/.ssh/id_rsa
+          --private-key ~/.ssh/id_rsa \
+          --extra-vars "tunnel_token=${{ needs.terraform.outputs.tunnel_token }}"
 
   docker-build-push:
     name: Docker Build and Push
@@ -89,7 +93,7 @@ jobs:
 
   k8s-deploy:
     name: Deploy to Kubernetes
-    needs: [terraform, ansible-setup-k3s, docker-build-push]
+    needs: [terraform, ansible-setup, docker-build-push]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
