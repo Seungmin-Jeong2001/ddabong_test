@@ -1,7 +1,7 @@
 name: Infrastructure and Deployment (Terraform, Ansible, K8s)
 
 on:
-  workflow_dispatch: # 수동 실행
+  workflow_dispatch: # 수동 실행 버튼으로 동작
 
 jobs:
   terraform:
@@ -14,6 +14,7 @@ jobs:
       TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
       TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       TF_VAR_ssh_pub_key: ${{ secrets.SSH_PUB_KEY }}
+      TF_VAR_ssh_user: "ubuntu" # SSH 접속 계정 명시
     outputs:
       server_ip: ${{ steps.terraform_output.outputs.server_ip }}
       tunnel_token: ${{ steps.terraform_output.outputs.tunnel_token }}
@@ -40,7 +41,7 @@ jobs:
         echo "tunnel_token=$(terraform output -raw tunnel_token)" >> $GITHUB_OUTPUT
 
   ansible-setup:
-    name: Ansible Setup k3s, Tunnel & K8s Deploy
+    name: Ansible Setup k3s & Monitoring
     needs: terraform
     runs-on: ubuntu-latest
     steps:
@@ -52,19 +53,22 @@ jobs:
         mkdir -p ~/.ssh
         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
         chmod 600 ~/.ssh/id_rsa
+        # 서버 준비될 때까지 기다리며 스캔
         ssh-keyscan -H ${{ needs.terraform.outputs.server_ip }} >> ~/.ssh/known_hosts
 
     - name: Run Ansible Playbook
       run: |
+        # [해결] --extra-vars 에 discord_webhook_url을 명시적으로 추가하여 Ansible 에러 해결
         ansible-playbook -i "${{ needs.terraform.outputs.server_ip }}," ansible/playbook.yml \
           -u ubuntu \
           --private-key ~/.ssh/id_rsa \
           --extra-vars "tunnel_token=${{ needs.terraform.outputs.tunnel_token }} discord_webhook_url=${{ secrets.DISCORD_WEBHOOK_URL }}"
-      # [수정] discord_webhook_url을 extra-vars로 추가하여 Ansible 에러 해결
+
+  # [Docker 빌드 단계는 요청대로 제거되었습니다]
 
   k8s-deploy:
-    name: Final App Rollout
-    needs: [terraform, ansible-setup] # docker-build-push 제거됨
+    name: Final Rollout
+    needs: [terraform, ansible-setup]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -77,8 +81,9 @@ jobs:
         chmod 600 ~/.ssh/id_rsa
         ssh-keyscan -H ${{ needs.terraform.outputs.server_ip }} >> ~/.ssh/known_hosts
 
-    - name: Apply Kubernetes Manifests via SSH
+    - name: App Rollout Restart
       run: |
-        # 최신 배포를 위해 manifests 전송 및 적용
-        scp -i ~/.ssh/id_rsa k8s/manifests.yaml ubuntu@${{ needs.terraform.outputs.server_ip }}:~/manifests.yaml
-        ssh -i ~/.ssh/id_rsa ubuntu@${{ needs.terraform.outputs.server_ip }} "kubectl apply -f ~/manifests.yaml && kubectl rollout restart deployment/cat-web-deployment"
+        # 이미 Ansible의 k8s_deploy 역할에서 모든 manifests가 적용되었으므로, 
+        # 여기서는 최신 이미지를 불러오기 위한 재시작 명령만 수행합니다.
+        ssh -i ~/.ssh/id_rsa ubuntu@${{ needs.terraform.outputs.server_ip }} \
+          "kubectl rollout restart deployment/cat-web-deployment"
