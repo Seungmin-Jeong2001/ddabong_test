@@ -11,9 +11,9 @@ data:
       group_by: ['alertname']
       receiver: 'discord'
     receivers:
-    - name: 'discord'
+    - name: discord
       webhook_configs:
-      - url: '{{ discord_webhook_url | default("") }}'
+      - url: 'http://localhost:9094'
         send_resolved: true
 ---
 apiVersion: apps/v1
@@ -42,6 +42,17 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /etc/alertmanager
+      # Add discord sidecar container
+      - name: discord-sidecar
+        image: benjojo/alertmanager-discord:latest
+        ports:
+        - containerPort: 9094
+        env:
+        - name: DISCORD_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: discord-webhook-secret # This secret needs to be created separately by the user
+              key: url
       volumes:
       - name: config
         configMap:
