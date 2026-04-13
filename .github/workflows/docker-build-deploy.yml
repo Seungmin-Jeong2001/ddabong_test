@@ -4,9 +4,8 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'web/**'
+      - 'web_docker/**'
       - 'k8s/**'
-      - 'Dockerfile'
 
 jobs:
   build-and-push:
@@ -25,7 +24,7 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: .
+        context: ./web_docker
         push: true
         tags: jeongseungmin/ddabong_jeong:latest
 
