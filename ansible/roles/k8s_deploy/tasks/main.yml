@@ -7,13 +7,6 @@
     - app
     - monitoring
 
-- name: Create Discord webhook secret
-  shell: |
-    kubectl create secret generic discord-webhook-secret \
-      --from-literal=DISCORD_WEBHOOK='{{ discord_webhook_url }}' \
-      --dry-run=client -o yaml | kubectl apply -f -
-  environment:
-    KUBECONFIG: /home/{{ ansible_user }}/.kube/config
 
 - name: Copy app manifests
   copy:
@@ -24,6 +17,8 @@
   template:
     src: k8s/alertmanager.yaml.j2
     dest: /home/{{ ansible_user }}/k8s/monitoring/alertmanager.yaml
+  vars:
+    discord_webhook_url: "{{ discord_webhook_url }}"
 
 - name: Copy Prometheus manifest (Template)
   template:

@@ -3,6 +3,7 @@ kind: ConfigMap
 metadata:
   name: alertmanager-config
   namespace: default
+
 data:
   alertmanager.yml: |
     global:
@@ -10,75 +11,79 @@ data:
 
     route:
       group_by: ['alertname']
-      receiver: 'discord'
+      group_wait: 10s
+      group_interval: 30s
+      repeat_interval: 1h
+      receiver: discord
 
     receivers:
     - name: discord
       webhook_configs:
-      - url: 'http://localhost:9094'
+      - url: "{{ discord_webhook_url }}"
         send_resolved: true
+
+    inhibit_rules:
+    - source_match:
+        severity: 'critical'
+      target_match:
+        severity: 'warning'
+      equal: ['alertname', 'instance']
+
 ---
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: alertmanager
   namespace: default
+
 spec:
   replicas: 1
+
   selector:
     matchLabels:
       app: alertmanager
+
   template:
     metadata:
       labels:
         app: alertmanager
+
     spec:
       containers:
 
-      # =========================
-      # Alertmanager
-      # =========================
       - name: alertmanager
         image: prom/alertmanager:latest
         args:
           - "--config.file=/etc/alertmanager/alertmanager.yml"
           - "--storage.path=/alertmanager"
+          - "--web.listen-address=:9093"
         ports:
-          - containerPort: 9093
-        volumeMounts:
-          - name: config
-            mountPath: /etc/alertmanager
+        - containerPort: 9093
 
-      # =========================
-      # Discord Sidecar
-      # =========================
-      - name: discord-sidecar
-        image: benjojo/alertmanager-discord:latest
-        ports:
-          - containerPort: 9094
-        env:
-          - name: DISCORD_WEBHOOK
-            valueFrom:
-              secretKeyRef:
-                name: discord-webhook-secret
-                key: DISCORD_WEBHOOK
-        args:
-          - "--listen-address=:9094"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/alertmanager
 
       volumes:
-        - name: config
-          configMap:
-            name: alertmanager-config
+      - name: config
+        configMap:
+          name: alertmanager-config
+
 ---
+
 apiVersion: v1
 kind: Service
 metadata:
   name: alertmanager-service
   namespace: default
+
 spec:
   type: LoadBalancer
+
   selector:
     app: alertmanager
+
   ports:
     - protocol: TCP
       port: 9093
