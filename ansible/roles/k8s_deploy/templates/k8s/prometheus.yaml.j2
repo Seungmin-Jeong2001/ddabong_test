@@ -76,6 +76,7 @@ metadata:
   name: prometheus-service
   namespace: default
 spec:
+  type: LoadBalancer
   selector:
     app: prometheus
   ports:

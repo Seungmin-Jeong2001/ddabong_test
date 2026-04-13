@@ -53,6 +53,7 @@ metadata:
   name: alertmanager-service
   namespace: default
 spec:
+  type: LoadBalancer
   selector:
     app: alertmanager
   ports:
