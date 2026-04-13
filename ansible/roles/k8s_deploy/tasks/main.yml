@@ -1,5 +1,4 @@
-# ansible/roles/k8s_deploy/tasks/main.yml
-
+---
 - name: Ensure manifest directories exist on remote
   file:
     path: /home/{{ ansible_user }}/k8s/{{ item }}
@@ -7,6 +6,13 @@
   loop:
     - app
     - monitoring
+    - kube-state-metrics # 폴더 추가
+
+# 1. kube-state-metrics 공식 매니페스트 다운로드 (v2.10.1 기준)
+- name: Download kube-state-metrics manifests
+  get_url:
+    url: https://github.com/kubernetes/kube-state-metrics/releases/download/v2.10.1/standard.yaml
+    dest: /home/{{ ansible_user }}/k8s/kube-state-metrics/kube-state-metrics.yaml
 
 - name: Copy app manifests
   copy:
@@ -18,15 +24,19 @@
     src: k8s/alertmanager.yaml.j2
     dest: /home/{{ ansible_user }}/k8s/monitoring/alertmanager.yaml
 
-# [추가] Prometheus 템플릿 복사 (여기에 Rule이 포함됨)
 - name: Copy Prometheus manifest (Template)
   template:
     src: k8s/prometheus.yaml.j2
     dest: /home/{{ ansible_user }}/k8s/monitoring/prometheus.yaml
 
+# 2. 모든 리소스 적용 (kube-state-metrics 포함)
 - name: Apply all K8s manifests
-  shell: kubectl apply -R -f /home/{{ ansible_user }}/k8s/
-  # -R 옵션 덕분에 app/ 폴더와 monitoring/ 폴더 내의 모든 파일이 적용됩니다.
+  shell: |
+    KUBECONFIG=~/.kube/config kubectl apply -f /home/{{ ansible_user }}/k8s/kube-state-metrics/kube-state-metrics.yaml
+    KUBECONFIG=~/.kube/config kubectl apply -R -f /home/{{ ansible_user }}/k8s/app/
+    KUBECONFIG=~/.kube/config kubectl apply -R -f /home/{{ ansible_user }}/k8s/monitoring/
+  become: no
 
 - name: Rollout restart deployment
-  shell: kubectl rollout restart deployment/cat-web-deployment
+  shell: KUBECONFIG=~/.kube/config kubectl rollout restart deployment/cat-web-deployment
+  become: no

@@ -20,6 +20,14 @@ spec:
         ports:
         - containerPort: 80
         imagePullPolicy: Always
+        # [추가] HPA가 CPU 사용량을 계산할 수 있도록 기준점을 정의합니다.
+        resources:
+          requests:
+            cpu: "100m"      # 최소 0.1 코어 보장
+            memory: "128Mi"  # 최소 128MB 보장
+          limits:
+            cpu: "200m"      # 최대 0.2 코어 제한
+            memory: "256Mi"  # 최대 256MB 제한
 ---
 apiVersion: v1
 kind: Service
@@ -33,3 +41,23 @@ spec:
       port: 80
       targetPort: 80
   type: LoadBalancer
+---
+# [추가] HorizontalPodAutoscaler 설정
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cat-web-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cat-web-deployment
+  minReplicas: 1   # 최소 파드 수
+  maxReplicas: 5   # 트래픽 증가 시 최대 5개까지 자동 확장
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50 # CPU 사용량이 평균 50%를 넘으면 새로운 파드 생성
