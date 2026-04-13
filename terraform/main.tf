@@ -53,15 +53,15 @@ resource "random_password" "tunnel_secret" {
   special = false
 }
 
-resource "cloudflare_tunnel" "cat_tunnel" {
+resource "cloudflare_zero_trust_tunnel_cloudflared" "cat_tunnel" {
   account_id = var.cloudflare_account_id
   name       = "bucheong-cat-tunnel"
   secret     = base64encode(random_password.tunnel_secret.result)
 }
 
-resource "cloudflare_tunnel_config" "cat_config" {
+resource "cloudflare_zero_trust_tunnel_cloudflared_config" "cat_config" {
   account_id = var.cloudflare_account_id
-  tunnel_id  = cloudflare_tunnel.cat_tunnel.id
+  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.cat_tunnel.id
 
   config {
     ingress_rule {
@@ -81,7 +81,7 @@ resource "cloudflare_tunnel_config" "cat_config" {
 resource "cloudflare_record" "tunnel_record" {
   zone_id = var.cloudflare_zone_id
   name    = "bucheongoyangijanggun.com"
-  content = "${cloudflare_tunnel.cat_tunnel.id}.cfargotunnel.com"
+  content = "${cloudflare_zero_trust_tunnel_cloudflared.cat_tunnel.id}.cfargotunnel.com"
   type    = "CNAME"
   proxied = true
 }
