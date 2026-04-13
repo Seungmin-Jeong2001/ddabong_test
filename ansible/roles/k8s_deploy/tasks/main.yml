@@ -10,7 +10,7 @@
 - name: Create Discord webhook secret
   shell: |
     kubectl create secret generic discord-webhook-secret \
-      --from-literal=url='{{ discord_webhook_url }}' \
+      --from-literal=DISCORD_WEBHOOK='{{ discord_webhook_url }}' \
       --dry-run=client -o yaml | kubectl apply -f -
   environment:
     KUBECONFIG: /home/{{ ansible_user }}/.kube/config
