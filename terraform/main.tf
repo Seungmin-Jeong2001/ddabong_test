@@ -69,6 +69,10 @@ resource "cloudflare_tunnel_config" "cat_config" {
       service  = "http://localhost:80"
     }
     ingress_rule {
+      hostname = "www.bucheongoyangijanggun.com"
+      service  = "http://localhost:80"
+    }
+    ingress_rule {
       service = "http_status:404"
     }
   }

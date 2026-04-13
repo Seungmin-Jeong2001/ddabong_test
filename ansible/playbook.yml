@@ -9,6 +9,19 @@
       apt:
         update_cache: yes
 
+    - name: Ensure host Nginx is stopped and disabled
+      service:
+        name: nginx
+        state: stopped
+        enabled: no
+      ignore_errors: yes
+
+    - name: Remove host Nginx to avoid conflicts
+      apt:
+        name: nginx
+        state: absent
+        purge: yes
+
     - name: Install dependencies
       apt:
         name:
