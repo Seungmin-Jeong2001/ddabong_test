@@ -4,10 +4,10 @@
     src: files/manifests.yaml
     dest: /home/{{ ansible_user }}/manifests.yaml
 
-- name: Copy monitoring manifests to remote
-  copy:
-    src: files/monitoring/
-    dest: /home/{{ ansible_user }}/monitoring/
+- name: Copy monitoring manifests to remote (Templates)
+  template:
+    src: monitoring/alertmanager.yaml.j2
+    dest: /home/{{ ansible_user }}/monitoring/alertmanager.yaml
 
 - name: Apply App Manifests
   shell: kubectl apply -f /home/{{ ansible_user }}/manifests.yaml

@@ -67,4 +67,5 @@ jobs:
         ansible-playbook -i "${{ steps.terraform_output.outputs.server_ip }}," ansible/playbook.yml \
           -u ubuntu \
           --private-key ~/.ssh/id_rsa \
-          --extra-vars "tunnel_token=${{ steps.terraform_output.outputs.tunnel_token }}"
+          --extra-vars "tunnel_token=${{ needs.terraform.outputs.tunnel_token }} discord_webhook_url=${{ secrets.DISCORD_WEBHOOK_URL }}"
+
