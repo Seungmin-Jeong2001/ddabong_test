@@ -8,20 +8,22 @@ data:
     groups:
     - name: cat-server-alerts
       rules:
+      # 1. 앱이 다운되었을 때 (가용 파드가 0일 때)
       - alert: CatServerDown
-        expr: kube_pod_status_phase{pod=~"cat-web-deployment-.*", phase!="Running"} == 1
+        expr: kube_deployment_status_replicas_available{deployment="cat-web-deployment"} == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: "Cat server down"
-          description: "cat-web pod is not running"
+          summary: "서버 다운 경보!"
+          description: "cat-web-deployment의 사용 가능한 파드가 0개입니다."
 
+      # 2. HPA가 최대치에 도달했을 때
       - alert: HPAReplicasAtMax
-        expr: kube_hpa_status_current_replicas{hpa="cat-web-hpa"} >= kube_hpa_spec_max_replicas{hpa="cat-web-hpa"}
-        for: 5m
+        expr: kube_hpa_status_current_replicas{hpa="cat-web-hpa"} == kube_hpa_spec_max_replicas{hpa="cat-web-hpa"}
+        for: 2m
         labels:
           severity: warning
         annotations:
-          summary: "HPA max reached"
-          description: "High load detected"
+          summary: "HPA 최대치 도달"
+          description: "현재 리소스 사용량이 많아 파드가 최대 개수({{ $value }}개)까지 늘어났습니다."
