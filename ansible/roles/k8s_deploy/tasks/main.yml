@@ -8,23 +8,23 @@
     - app
     - monitoring
 
-# 2. APP 매니페스트 복사 (이미 HPA가 포함되어 있음)
+# 2. APP 매니페스트 복사
 - name: Copy app manifests
   copy:
     src: files/manifests.yaml
     dest: "/home/{{ ansible_user }}/k8s/app/manifests.yaml"
 
-# 3. Prometheus/Alertmanager 템플릿 배포 (ConfigMap + Deployment + Service 포함)
+# 3. Prometheus/Alertmanager 템플릿 배포
 - name: Copy Monitoring manifests
   template:
-    src: "k8s/{{ item }}.j2"
+    src: "k8s/{{ item }}" 
     dest: "/home/{{ ansible_user }}/k8s/monitoring/{{ item | replace('.j2', '') }}"
   loop:
     - prometheus.yaml.j2
     - alertmanager.yaml.j2
     - alert-rules.yaml.j2
 
-# 4. kube-state-metrics 설치 (메트릭 수집용)
+# 4. kube-state-metrics 설치
 - name: Apply kube-state-metrics
   command: >
     kubectl apply -f https://raw.githubusercontent.com/kubernetes/kube-state-metrics/v2.10.1/examples/standard/{{ item }}
@@ -37,13 +37,13 @@
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
-# 5. 모든 매니페스트 적용 (App + Monitoring)
+# 5. 모든 매니페스트 적용
 - name: Apply all local K8s manifests
   command: "kubectl apply -R -f /home/{{ ansible_user }}/k8s/"
   environment:
     KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
-# 6. 앱 재시작 (이미지 갱신 확인용)
+# 6. 앱 롤아웃 재시작
 - name: Rollout restart deployment
   command: "kubectl rollout restart deployment/cat-web-deployment"
   environment:
