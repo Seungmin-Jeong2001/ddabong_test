@@ -1,3 +1,17 @@
+
+terraform {
+  required_providers {
+    cloudflare = {
+      source  = "cloudflare/cloudflare" # 👈 반드시 이 소스 주소여야 합니다.
+      version = ">= 4.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = ">= 3.0"
+    }
+  }
+}
+
 resource "random_password" "tunnel_secret" {
   length  = 32
   special = false
