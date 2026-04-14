@@ -3,95 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DDABONG CCTV</title>
+    <title>ddabong통합</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
+        .pulse { animation: pulse-animation 1s infinite; }
+        @keyframes pulse-animation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
-        .container {
-            max-width: 1000px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        header {
-            margin-bottom: 20px;
-        }
-        .cctv-placeholder {
-            width: 100%;
-            height: 500px;
-            background-color: #333;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-            font-size: 24px;
-            margin-bottom: 30px;
-        }
-        .status-section {
-            display: flex;
-            justify-content: space-around;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-        .status-card {
-            background: #e9ecef;
-            padding: 20px;
-            border-radius: 8px;
-            width: 250px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-        .status-card h3 {
-            margin-top: 0;
-        }
-        .status-online {
-            color: #28a745;
-            font-weight: bold;
-        }
-        .status-offline {
-            color: #dc3545;
-            font-weight: bold;
-        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
     </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>DDABONG CCTV 모니터링</h1>
+<body class="bg-gray-100 font-sans">
+
+    <div class="max-w-md mx-auto bg-white min-h-screen shadow-lg flex flex-col">
+        <header class="bg-blue-600 text-white p-4 text-center font-bold text-lg shadow-md sticky top-0 z-10">
+            <span id="header-title">실시간 모니터링</span>
         </header>
 
-        <section>
-            <h2>CCTV 라이브 화면</h2>
-            <div class="cctv-placeholder">
-                [ CCTV 실시간 영상 데이터 대기 중 ]
-            </div>
-        </section>
+        <main class="flex-1 p-5 pb-20">
+            
+            <div id="home" class="tab-content active space-y-4">
+                <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-center">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-gray-400 text-sm">기기 연결됨</span>
+                        <span id="status-badge" class="px-2 py-1 rounded text-[10px] font-bold bg-green-100 text-green-600">정상</span>
+                    </div>
+                    <div id="heart-icon" class="text-red-500 text-4xl mb-1">❤️</div>
+                    <div class="text-5xl font-black text-gray-800"><span id="bpm">72</span> <span class="text-sm font-normal text-gray-400">BPM</span></div>
+                </div>
 
-        <section class="status-section">
-            <div class="status-card">
-                <h3>메인 카메라</h3>
-                <p>상태: <span class="status-online">정상</span></p>
-            </div>
-            <div class="status-card">
-                <h3>서브 카메라</h3>
-                <p>상태: <span class="status-online">정상</span></p>
-            </div>
-            <div class="status-card">
-                <h3>센서 노드 #1</h3>
-                <p>상태: <span class="status-online">정상</span></p>
-            </div>
-        </section>
+                <div class="bg-black rounded-xl overflow-hidden aspect-video relative">
+                    <div class="absolute top-2 left-2 flex items-center bg-black/50 px-2 py-1 rounded">
+                        <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></div>
+                        <span class="text-white text-[10px]">CAM 01 - 거실</span>
+                    </div>
+                    <div class="w-full h-full flex items-center justify-center text-gray-600 text-xs">시뮬레이션 영상 재생 중...</div>
+                </div>
 
-        <footer style="margin-top: 40px; color: #777;">
-            &copy; 2026 bucheongoyangijanggun.com
-        </footer>
+                <button onclick="emergencyCall()" class="w-full bg-red-500 text-white font-bold py-4 rounded-xl shadow-lg active:bg-red-700">긴급 호출</button>
+            </div>
+
+            <div id="history" class="tab-content space-y-4">
+                <h3 class="font-bold text-gray-700">최근 이상 징후 기록</h3>
+                <div id="log-list" class="space-y-2">
+                    <div class="p-3 bg-gray-50 rounded-lg border-l-4 border-blue-400">
+                        <p class="text-xs text-gray-500">2026-04-14 10:00</p>
+                        <p class="text-sm font-medium">시스템 가동 시작</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="settings" class="tab-content space-y-6">
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-gray-600 px-1">알림 임계값 설정</label>
+                    <div class="bg-white border rounded-xl p-4 flex justify-between items-center">
+                        <span>맥박 위험 수치</span>
+                        <input type="number" value="100" class="w-16 border-b text-center focus:outline-none">
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-bold text-gray-600 px-1">비상 연락처</label>
+                    <div class="bg-white border rounded-xl p-4 flex justify-between items-center">
+                        <span>관리실 1호</span>
+                        <span class="text-blue-500 text-sm italic underline">010-1234-XXXX</span>
+                    </div>
+                </div>
+                <button class="w-full py-3 bg-gray-800 text-white rounded-xl text-sm">설정 저장</button>
+            </div>
+
+        </main>
+
+        <nav class="fixed bottom-0 max-w-md w-full bg-white border-t flex justify-around p-3 z-10">
+            <button onclick="showTab('home', '실시간 모니터링')" class="nav-item text-blue-600 flex flex-col items-center">
+                <span class="text-xl">🏠</span><span class="text-[10px]">홈</span>
+            </button>
+            <button onclick="showTab('history', '상태 기록')" class="nav-item text-gray-400 flex flex-col items-center">
+                <span class="text-xl">📊</span><span class="text-[10px]">기록</span>
+            </button>
+            <button onclick="showTab('settings', '시스템 설정')" class="nav-item text-gray-400 flex flex-col items-center">
+                <span class="text-xl">⚙️</span><span class="text-[10px]">설정</span>
+            </button>
+        </nav>
     </div>
+
+    <script>
+        // 탭 전환 로직
+        function showTab(tabId, title) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            document.getElementById('header-title').innerText = title;
+
+            // 아이콘 색상 변경
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => item.classList.replace('text-blue-600', 'text-gray-400'));
+            event.currentTarget.classList.replace('text-gray-400', 'text-blue-600');
+        }
+
+        // 실시간 데이터 시뮬레이션
+        setInterval(() => {
+            const bpm = Math.floor(Math.random() * (110 - 65) + 65);
+            document.getElementById('bpm').innerText = bpm;
+
+            if(bpm > 100) {
+                document.getElementById('status-badge').innerText = "위험";
+                document.getElementById('status-badge').className = "px-2 py-1 rounded text-[10px] font-bold bg-red-100 text-red-600";
+                addLog(`위험 감지: 맥박 수치 ${bpm} BPM`);
+            } else {
+                document.getElementById('status-badge').innerText = "정상";
+                document.getElementById('status-badge').className = "px-2 py-1 rounded text-[10px] font-bold bg-green-100 text-green-600";
+            }
+        }, 3000);
+
+        function addLog(msg) {
+            const logList = document.getElementById('log-list');
+            const div = document.createElement('div');
+            div.className = "p-3 bg-red-50 rounded-lg border-l-4 border-red-400 animate-bounce";
+            div.innerHTML = `<p class="text-xs text-gray-500">${new Date().toLocaleTimeString()}</p><p class="text-sm font-medium">${msg}</p>`;
+            logList.prepend(div);
+        }
+
+        function emergencyCall() {
+            alert("긴급 상황이 접수되었습니다. 보호자에게 알림을 전송합니다.");
+            addLog("사용자 수동 긴급 호출 발생");
+        }
+    </script>
 </body>
 </html>
