@@ -48,4 +48,5 @@ module "cloudflare" {
   cloudflare_account_id = var.cloudflare_account_id
   cloudflare_zone_id    = var.cloudflare_zone_id
   domain                = "bucheongoyangijanggun.com"
+  server_ip             = module.compute.server_ip 
 }

@@ -1,22 +1,4 @@
-terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = ">= 5.0"
-    }
-  }
-}
-
-resource "google_compute_network" "vpc_network" {
-  name = var.network_name
-}
-
-resource "google_compute_subnetwork" "vpc_subnet" {
-  name          = var.subnet_name
-  ip_cidr_range = "10.0.1.0/24"
-  network       = google_compute_network.vpc_network.id
-}
-
+# 기존 SSH 허용 규칙은 유지
 resource "google_compute_firewall" "allow_ssh" {
   name    = "allow-ssh-only"
   network = google_compute_network.vpc_network.name
@@ -28,4 +10,17 @@ resource "google_compute_firewall" "allow_ssh" {
 
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["ssh-server"]
+}
+
+resource "google_compute_firewall" "allow_services" {
+  name    = "allow-web-and-monitor"
+  network = google_compute_network.vpc_network.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "9090", "9093"] # 웹 서비스, 프로메테우스, 얼럿매니저
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["ssh-server"] # module.compute에서 인스턴스에 부여한 태그와 일치해야 함
 }
