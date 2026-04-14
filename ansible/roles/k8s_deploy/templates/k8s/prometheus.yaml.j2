@@ -98,15 +98,17 @@ spec:
         configMap:
           name: prometheus-rules
 ---
-# 4. Prometheus 서비스 (Service)
+
 apiVersion: v1
 kind: Service
 metadata:
   name: prometheus-service
   namespace: default
 spec:
+  type: NodePort  
   selector:
     app: prometheus
   ports:
     - port: 9090
       targetPort: 9090
+      nodePort: 30090 

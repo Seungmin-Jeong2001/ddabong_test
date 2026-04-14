@@ -29,28 +29,19 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "cat_config" {
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.cat_tunnel.id
 
   config {
-    # 1. 메인 앱 (cat-web)
     ingress_rule {
       hostname = var.domain
-      service  = "http://localhost:80"
+      service  = "http://localhost:80" # 앱 서비스가 LoadBalancer/NodePort 포트 80인 경우
     }
     
-    # 2. Prometheus (추가)
     ingress_rule {
       hostname = "prom.${var.domain}"
-      service  = "http://localhost:9090"
+      service  = "http://localhost:30090" # 👈 9090에서 30090으로 변경
     }
 
-    # 3. Alertmanager (추가)
     ingress_rule {
       hostname = "alerts.${var.domain}"
-      service  = "http://localhost:9093"
-    }
-
-    # 4. www 서브도메인
-    ingress_rule {
-      hostname = "www.${var.domain}"
-      service  = "http://localhost:80"
+      service  = "http://localhost:30093" # 👈 9093에서 30093으로 변경
     }
 
     ingress_rule {
