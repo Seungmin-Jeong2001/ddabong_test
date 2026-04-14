@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: default
+data:
+  rules.yml: |
+    groups:
+    - name: cat-server-alerts
+      rules:
+      - alert: CatServerDown
+        expr: kube_pod_status_phase{pod=~"cat-web-deployment-.*", phase!="Running"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Cat server down"
+          description: "cat-web pod is not running"
+
+      - alert: HPAReplicasAtMax
+        expr: kube_hpa_status_current_replicas{hpa="cat-web-hpa"} >= kube_hpa_spec_max_replicas{hpa="cat-web-hpa"}
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HPA max reached"
+          description: "High load detected"

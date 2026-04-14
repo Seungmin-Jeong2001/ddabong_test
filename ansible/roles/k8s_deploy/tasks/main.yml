@@ -1,4 +1,3 @@
----
 - name: Ensure manifest directories exist on remote
   file:
     path: /home/{{ ansible_user }}/k8s/{{ item }}
@@ -8,23 +7,45 @@
     - monitoring
 
 
+# =========================
+# APP manifests
+# =========================
 - name: Copy app manifests
   copy:
     src: files/manifests.yaml
     dest: /home/{{ ansible_user }}/k8s/app/manifests.yaml
 
-- name: Copy Alertmanager manifest (Template)
-  template:
-    src: k8s/alertmanager.yaml.j2
-    dest: /home/{{ ansible_user }}/k8s/monitoring/alertmanager.yaml
-  vars:
-    discord_webhook_url: "{{ discord_webhook_url }}"
 
-- name: Copy Prometheus manifest (Template)
+# =========================
+# PROMETHEUS
+# =========================
+- name: Copy Prometheus manifest
   template:
     src: k8s/prometheus.yaml.j2
     dest: /home/{{ ansible_user }}/k8s/monitoring/prometheus.yaml
 
+
+# =========================
+# ALERTMANAGER (Discord direct webhook)
+# =========================
+- name: Copy Alertmanager manifest
+  template:
+    src: k8s/alertmanager.yaml.j2
+    dest: /home/{{ ansible_user }}/k8s/monitoring/alertmanager.yaml
+
+
+# =========================
+# ALERT RULES (IMPORTANT)
+# =========================
+- name: Copy Alert rules manifest
+  template:
+    src: k8s/alert-rules.yaml.j2
+    dest: /home/{{ ansible_user }}/k8s/monitoring/alert-rules.yaml
+
+
+# =========================
+# APPLY kube-state-metrics
+# =========================
 - name: Apply kube-state-metrics
   command: >
     kubectl apply -f https://raw.githubusercontent.com/kubernetes/kube-state-metrics/v2.10.1/examples/standard/{{ item }}
@@ -37,12 +58,20 @@
   environment:
     KUBECONFIG: /home/{{ ansible_user }}/.kube/config
 
-- name: Apply all local K8s manifests (App & Monitoring)
+
+# =========================
+# APPLY ALL MANIFESTS
+# =========================
+- name: Apply all local K8s manifests
   command: >
     kubectl apply -R -f /home/{{ ansible_user }}/k8s/
   environment:
     KUBECONFIG: /home/{{ ansible_user }}/.kube/config
 
+
+# =========================
+# ROLLOUT APP
+# =========================
 - name: Rollout restart deployment
   command: >
     kubectl rollout restart deployment/cat-web-deployment

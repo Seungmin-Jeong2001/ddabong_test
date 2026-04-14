@@ -3,17 +3,12 @@ kind: ConfigMap
 metadata:
   name: alertmanager-config
   namespace: default
-
 data:
   alertmanager.yml: |
     global:
       resolve_timeout: 5m
 
     route:
-      group_by: ['alertname']
-      group_wait: 10s
-      group_interval: 30s
-      repeat_interval: 1h
       receiver: discord
 
     receivers:
@@ -21,70 +16,3 @@ data:
       webhook_configs:
       - url: "{{ discord_webhook_url }}"
         send_resolved: true
-
-    inhibit_rules:
-    - source_match:
-        severity: 'critical'
-      target_match:
-        severity: 'warning'
-      equal: ['alertname', 'instance']
-
----
-
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: alertmanager
-  namespace: default
-
-spec:
-  replicas: 1
-
-  selector:
-    matchLabels:
-      app: alertmanager
-
-  template:
-    metadata:
-      labels:
-        app: alertmanager
-
-    spec:
-      containers:
-
-      - name: alertmanager
-        image: prom/alertmanager:latest
-        args:
-          - "--config.file=/etc/alertmanager/alertmanager.yml"
-          - "--storage.path=/alertmanager"
-          - "--web.listen-address=:9093"
-        ports:
-        - containerPort: 9093
-
-        volumeMounts:
-        - name: config
-          mountPath: /etc/alertmanager
-
-      volumes:
-      - name: config
-        configMap:
-          name: alertmanager-config
-
----
-
-apiVersion: v1
-kind: Service
-metadata:
-  name: alertmanager-service
-  namespace: default
-
-spec:
-  type: LoadBalancer
-
-  selector:
-    app: alertmanager
-
-  ports:
-    - protocol: TCP
-      port: 9093
-      targetPort: 9093
