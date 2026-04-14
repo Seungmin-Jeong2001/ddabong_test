@@ -1,51 +1,30 @@
+---
+# 1. 디렉토리 생성
 - name: Ensure manifest directories exist on remote
   file:
-    path: /home/{{ ansible_user }}/k8s/{{ item }}
+    path: "/home/{{ ansible_user }}/k8s/{{ item }}"
     state: directory
   loop:
     - app
     - monitoring
 
-
-# =========================
-# APP manifests
-# =========================
+# 2. APP 매니페스트 복사 (이미 HPA가 포함되어 있음)
 - name: Copy app manifests
   copy:
     src: files/manifests.yaml
-    dest: /home/{{ ansible_user }}/k8s/app/manifests.yaml
+    dest: "/home/{{ ansible_user }}/k8s/app/manifests.yaml"
 
-
-# =========================
-# PROMETHEUS
-# =========================
-- name: Copy Prometheus manifest
+# 3. Prometheus/Alertmanager 템플릿 배포 (ConfigMap + Deployment + Service 포함)
+- name: Copy Monitoring manifests
   template:
-    src: k8s/prometheus.yaml.j2
-    dest: /home/{{ ansible_user }}/k8s/monitoring/prometheus.yaml
+    src: "k8s/{{ item }}.j2"
+    dest: "/home/{{ ansible_user }}/k8s/monitoring/{{ item | replace('.j2', '') }}"
+  loop:
+    - prometheus.yaml.j2
+    - alertmanager.yaml.j2
+    - alert-rules.yaml.j2
 
-
-# =========================
-# ALERTMANAGER (Discord direct webhook)
-# =========================
-- name: Copy Alertmanager manifest
-  template:
-    src: k8s/alertmanager.yaml.j2
-    dest: /home/{{ ansible_user }}/k8s/monitoring/alertmanager.yaml
-
-
-# =========================
-# ALERT RULES (IMPORTANT)
-# =========================
-- name: Copy Alert rules manifest
-  template:
-    src: k8s/alert-rules.yaml.j2
-    dest: /home/{{ ansible_user }}/k8s/monitoring/alert-rules.yaml
-
-
-# =========================
-# APPLY kube-state-metrics
-# =========================
+# 4. kube-state-metrics 설치 (메트릭 수집용)
 - name: Apply kube-state-metrics
   command: >
     kubectl apply -f https://raw.githubusercontent.com/kubernetes/kube-state-metrics/v2.10.1/examples/standard/{{ item }}
@@ -56,24 +35,16 @@
     - deployment.yaml
     - service.yaml
   environment:
-    KUBECONFIG: /home/{{ ansible_user }}/.kube/config
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
-
-# =========================
-# APPLY ALL MANIFESTS
-# =========================
+# 5. 모든 매니페스트 적용 (App + Monitoring)
 - name: Apply all local K8s manifests
-  command: >
-    kubectl apply -R -f /home/{{ ansible_user }}/k8s/
+  command: "kubectl apply -R -f /home/{{ ansible_user }}/k8s/"
   environment:
-    KUBECONFIG: /home/{{ ansible_user }}/.kube/config
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
 
-
-# =========================
-# ROLLOUT APP
-# =========================
+# 6. 앱 재시작 (이미지 갱신 확인용)
 - name: Rollout restart deployment
-  command: >
-    kubectl rollout restart deployment/cat-web-deployment
+  command: "kubectl rollout restart deployment/cat-web-deployment"
   environment:
-    KUBECONFIG: /home/{{ ansible_user }}/.kube/config
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
